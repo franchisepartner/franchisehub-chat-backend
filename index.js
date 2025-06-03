@@ -3,10 +3,10 @@ const http = require('http');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 const server = http.createServer();
 const io = new Server(server, {
@@ -20,15 +20,27 @@ io.on('connection', (socket) => {
   console.log(`✅ User connected: ${socket.id}`);
 
   socket.on('send_message', async (data) => {
-    console.log('📨 Message received:', data);
+    const { sender_id, sender_name, sender_role, content } = data;
 
-    io.emit('receive_message', data);  
+    const { error } = await supabase.from('messages').insert({
+      sender_id,
+      sender_name,
+      sender_role,
+      content
+    });
 
-    await supabase.from('messages').insert([{
-      sender_id: data.sender_id,
-      content: data.content,
+    if (error) {
+      console.error('Gagal simpan pesan:', error);
+      return;
+    }
+
+    io.emit('receive_message', {
+      sender_id,
+      sender_name,
+      sender_role,
+      content,
       created_at: new Date()
-    }]);
+    });
   });
 
   socket.on('disconnect', () => {
