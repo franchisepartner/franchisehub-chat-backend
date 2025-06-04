@@ -28,12 +28,25 @@ io.on('connection', (socket) => {
       sender_role,
       content
     });
-    .select();
 
     if (error) {
       console.error('Gagal simpan pesan:', error);
       return;
     }
+
+    const { data: insertedMessage, error: fetchError } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('id', data[0].id)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching inserted message:', fetchError);
+      socket.emit('error', fetchError.message);
+      return;
+    }
+
+io.emit('receive_message', insertedMessage);
 
     io.emit('receive_message', {
       sender_id,
