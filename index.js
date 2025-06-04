@@ -28,6 +28,7 @@ io.on('connection', (socket) => {
       sender_role,
       content
     });
+    .select();
 
     if (error) {
       console.error('Gagal simpan pesan:', error);
