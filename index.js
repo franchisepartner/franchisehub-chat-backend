@@ -22,39 +22,31 @@ io.on('connection', (socket) => {
   socket.on('send_message', async (data) => {
     const { sender_id, sender_name, sender_role, content } = data;
 
-    const { error } = await supabase.from('messages').insert({
-      sender_id,
-      sender_name,
-      sender_role,
-      content
-    });
+    const { data: insertedMessages, error } = await supabase
+      .from('messages')
+      .insert({
+        sender_id,
+        sender_name,
+        sender_role,
+        content
+      })
+      .select(); // memastikan data hasil insert dikembalikan
 
     if (error) {
       console.error('Gagal simpan pesan:', error);
+      socket.emit('error', 'Gagal simpan pesan');
       return;
     }
 
-    const { data: insertedMessage, error: fetchError } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('id', data[0].id)
-      .single();
+    if (insertedMessages && insertedMessages.length > 0) {
+      const insertedMessage = insertedMessages[0];
 
-    if (fetchError) {
-      console.error('Error fetching inserted message:', fetchError);
-      socket.emit('error', fetchError.message);
-      return;
+      // Mengirim pesan yang disimpan ke semua pengguna
+      io.emit('receive_message', insertedMessage);
+    } else {
+      console.error('Insert berhasil tapi tidak ada data yang dikembalikan');
+      socket.emit('error', 'Insert berhasil tapi data tidak kembali');
     }
-
-io.emit('receive_message', insertedMessage);
-
-    io.emit('receive_message', {
-      sender_id,
-      sender_name,
-      sender_role,
-      content,
-      created_at: new Date()
-    });
   });
 
   socket.on('disconnect', () => {
